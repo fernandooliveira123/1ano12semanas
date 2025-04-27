@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blocos de Tempo - 12 Semanas</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
+    .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    h1 { text-align: center; color: #222; }
+    .date-selector { text-align: center; margin: 20px 0; }
+    .date-selector input { padding: 8px; border-radius: 6px; border: 1px solid #ccc; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 12px 8px; border: 1px solid #ccc; text-align: center; font-size: 14px; }
+    th { background: #00e676; color: #222; }
+    td input, td textarea { width: 95%; padding: 6px; border-radius: 6px; border: 1px solid #ccc; background: #f9f9f9; font-size: 13px; }
+    caption { font-size: 16px; margin-bottom: 10px; font-weight: bold; color: #444; }
+    .buttons { text-align: center; margin-top: 20px; }
+    .buttons button { padding: 10px 20px; margin: 5px; border: none; border-radius: 8px; background: #00e676; color: #222; cursor: pointer; font-weight: bold; }
+    .buttons button:hover { background: #00c760; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>📅 Planejamento Diário — Blocos de Tempo</h1>
+  
+  <div class="date-selector">
+    <label for="dataInicio">Data de Início: </label>
+    <input type="date" id="dataInicio" onchange="atualizarDatas()">
+  </div>
+  
+  <div class="buttons">
+    <button onclick="gerarPDF()">📄 Gerar PDF</button>
+    <button onclick="copiarTabela()">📋 Copiar Tabela</button>
+    <button onclick="salvarPlanejamento()">💾 Salvar Planejamento</button>
+    <button onclick="carregarPlanejamento()">📂 Carregar Planejamento</button>
+  </div>
+  
+  <table id="blocosTabela">
+    <caption>Distribuição dos Blocos ao Longo da Semana</caption>
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Dia</th>
+        <th>Bloco Estratégico 1</th>
+        <th>Bloco Estratégico 2</th>
+        <th>Bloco Tático 1</th>
+        <th>Bloco Tático 2</th>
+        <th>Bloco de Descanso</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td id="data-domingo"></td><td>Domingo</td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td></tr>
+      <tr><td id="data-segunda"></td><td>Segunda</td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td></tr>
+      <tr><td id="data-terca"></td><td>Terça</td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td></tr>
+      <tr><td id="data-quarta"></td><td>Quarta</td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td></tr>
+      <tr><td id="data-quinta"></td><td>Quinta</td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td></tr>
+      <tr><td id="data-sexta"></td><td>Sexta</td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td></tr>
+      <tr><td id="data-sabado"></td><td>Sábado</td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td><td><textarea></textarea></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+// Configura a data inicial como hoje
+document.getElementById('dataInicio').valueAsDate = new Date();
+atualizarDatas();
+
+function atualizarDatas() {
+  const dataInicio = new Date(document.getElementById('dataInicio').value);
+  if (isNaN(dataInicio.getTime())) return;
+
+  const diasSemana = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
+  
+  // Encontra o próximo domingo (se a data inicial não for domingo)
+  let dataAtual = new Date(dataInicio);
+  while (dataAtual.getDay() !== 0) {
+    dataAtual.setDate(dataAtual.getDate() + 1);
+  }
+
+  for (let i = 0; i < 7; i++) {
+    const dataCell = document.getElementById(`data-${diasSemana[i]}`);
+    const dataFormatada = formatarData(dataAtual);
+    dataCell.textContent = dataFormatada;
+    dataAtual.setDate(dataAtual.getDate() + 1);
+  }
+}
+
+function formatarData(data) {
+  const dia = String(data.getDate()).padStart(2, '0');
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const ano = data.getFullYear();
+  return `${dia}/${mes}/${ano}`;
+}
+
+function gerarPDF() {
+  window.print();
+}
+
+function copiarTabela() {
+  let tabela = document.getElementById('blocosTabela');
+  let texto = '';
+  
+  for (let row of tabela.rows) {
+    let linha = [];
+    for (let cell of row.cells) {
+      let input = cell.querySelector('textarea');
+      linha.push(input ? input.value : cell.textContent);
+    }
+    texto += linha.join('\t') + '\n';
+  }
+  
+  navigator.clipboard.writeText(texto).then(() => alert("✅ Tabela copiada com sucesso!"));
+}
+
+function salvarPlanejamento() {
+  const planejamento = [];
+  const linhas = document.querySelectorAll('#blocosTabela tbody tr');
+  
+  linhas.forEach(linha => {
+    const celulas = linha.cells;
+    const bloco = {
+      data: celulas[0].textContent,
+      dia: celulas[1].textContent,
+      estrategico1: celulas[2].querySelector('textarea').value,
+      estrategico2: celulas[3].querySelector('textarea').value,
+      tatico1: celulas[4].querySelector('textarea').value,
+      tatico2: celulas[5].querySelector('textarea').value,
+      descanso: celulas[6].querySelector('textarea').value
+    };
+    planejamento.push(bloco);
+  });
+  
+  localStorage.setItem('planejamentoSemanal', JSON.stringify(planejamento));
+  localStorage.setItem('dataInicioPlanejamento', document.getElementById('dataInicio').value);
+  alert('Planejamento salvo com sucesso!');
+}
+
+function carregarPlanejamento() {
+  const planejamentoSalvo = localStorage.getItem('planejamentoSemanal');
+  const dataInicioSalva = localStorage.getItem('dataInicioPlanejamento');
+  
+  if (planejamentoSalvo && dataInicioSalva) {
+    document.getElementById('dataInicio').value = dataInicioSalva;
+    atualizarDatas();
+    
+    const planejamento = JSON.parse(planejamentoSalvo);
+    const linhas = document.querySelectorAll('#blocosTabela tbody tr');
+    
+    planejamento.forEach((bloco, index) => {
+      if (index < linhas.length) {
+        const celulas = linhas[index].cells;
+        celulas[2].querySelector('textarea').value = bloco.estrategico1;
+        celulas[3].querySelector('textarea').value = bloco.estrategico2;
+        celulas[4].querySelector('textarea').value = bloco.tatico1;
+        celulas[5].querySelector('textarea').value = bloco.tatico2;
+        celulas[6].querySelector('textarea').value = bloco.descanso;
+      }
+    });
+    
+    alert('Planejamento carregado com sucesso!');
+  } else {
+    alert('Nenhum planejamento salvo encontrado!');
+  }
+}
+</script>
+
+</body>
+</html>
