@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cronômetro de Bloco Estratégico</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #f8f9fa; color: #222; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+  h1 { margin-bottom: 20px; }
+  .timer { font-size: 48px; margin: 20px 0; }
+  input, select, button { margin: 5px; padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; }
+  button { cursor: pointer; background: #00e676; color: #222; font-weight: bold; }
+  button:hover { background: #00c760; }
+  .dashboard { margin-top: 30px; width: 100%; max-width: 800px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { padding: 8px; border: 1px solid #ddd; text-align: center; }
+  th { background: #00e676; color: #222; }
+  .action-btn { 
+    padding: 5px 10px; 
+    margin: 0 2px; 
+    font-size: 14px; 
+  }
+  .delete-btn { background: #ff5252; color: white; }
+  .delete-btn:hover { background: #ff0000; }
+  .pause-btn { background: #ffc107; color: #222; }
+  .pause-btn:hover { background: #ffab00; }
+  .resume-btn { background: #2196f3; color: white; }
+  .resume-btn:hover { background: #1976d2; }
+  .save-btn { background: #673ab7; color: white; }
+  .save-btn:hover { background: #5e35b1; }
+</style>
+</head>
+<body>
+
+<h1>⏱️ Cronômetro de Bloco Estratégico</h1>
+
+<input type="text" id="projectName" placeholder="Nome do Projeto">
+<br>
+<button onclick="startStopTimer()" id="startBtn">Iniciar</button>
+<button onclick="resetTimer()">Resetar</button>
+<button onclick="saveCurrentBlock()" class="save-btn" id="saveBtn" disabled>Salvar Bloco</button>
+
+<div class="timer" id="timerDisplay">00:00:00</div>
+
+<div class="dashboard">
+  <h2>📊 Dashboard de Blocos</h2>
+  <table id="dashboardTable">
+    <thead>
+      <tr>
+        <th>Projeto</th>
+        <th>Data</th>
+        <th>Duração</th>
+        <th>Status</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script>
+let startTime, timerInterval;
+let elapsed = 0;
+let isRunning = false;
+let currentProject = '';
+
+function startStopTimer() {
+  const project = document.getElementById('projectName').value.trim();
+  if (!project) { alert('Digite o nome do projeto!'); return; }
+  
+  currentProject = project;
+
+  if (!isRunning) {
+    startTime = Date.now() - elapsed;
+    timerInterval = setInterval(updateTimer, 1000);
+    document.getElementById('startBtn').textContent = 'Pausar';
+    document.getElementById('saveBtn').disabled = true;
+    isRunning = true;
+  } else {
+    clearInterval(timerInterval);
+    document.getElementById('startBtn').textContent = 'Retomar';
+    document.getElementById('saveBtn').disabled = false;
+    isRunning = false;
+  }
+}
+
+function updateTimer() {
+  elapsed = Date.now() - startTime;
+  const totalSeconds = Math.floor(elapsed / 1000);
+  const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+  const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+  const seconds = String(totalSeconds % 60).padStart(2, '0');
+  document.getElementById('timerDisplay').textContent = `${hours}:${minutes}:${seconds}`;
+}
+
+function resetTimer() {
+  clearInterval(timerInterval);
+  elapsed = 0;
+  isRunning = false;
+  currentProject = '';
+  document.getElementById('timerDisplay').textContent = '00:00:00';
+  document.getElementById('startBtn').textContent = 'Iniciar';
+  document.getElementById('saveBtn').disabled = true;
+  document.getElementById('projectName').value = '';
+}
+
+function saveCurrentBlock() {
+  if (elapsed === 0) {
+    alert('Nenhum tempo registrado para salvar!');
+    return;
+  }
+  
+  if (!currentProject) {
+    alert('Nenhum projeto ativo para salvar!');
+    return;
+  }
+
+  saveBlock(currentProject, elapsed);
+  resetTimer();
+}
+
+function saveBlock(project, durationMs) {
+  const now = new Date();
+  const durationMin = Math.floor(durationMs / 60000);
+  const block = {
+    id: Date.now(), // ID único para cada bloco
+    project,
+    date: now.toLocaleDateString(),
+    time: now.toLocaleTimeString(),
+    duration: `${Math.floor(durationMin/60)}h ${durationMin%60}min`,
+    durationMs: durationMs,
+    status: 'Concluído'
+  };
+  let blocks = JSON.parse(localStorage.getItem('blocks')) || [];
+  blocks.push(block);
+  localStorage.setItem('blocks', JSON.stringify(blocks));
+  loadDashboard();
+}
+
+function loadDashboard() {
+  const table = document.getElementById('dashboardTable').querySelector('tbody');
+  table.innerHTML = '';
+  let blocks = JSON.parse(localStorage.getItem('blocks')) || [];
+  
+  // Ordenar por data/hora (mais recente primeiro)
+  blocks.sort((a, b) => b.id - a.id);
+
+  blocks.forEach(block => {
+    const row = document.createElement('tr');
+    
+    // Colunas básicas
+    row.innerHTML = `
+      <td>${block.project}</td>
+      <td>${block.date} ${block.time}</td>
+      <td>${block.duration}</td>
+      <td>${block.status || 'Concluído'}</td>
+    `;
+    
+    // Coluna de ações
+    const actionsCell = document.createElement('td');
+    
+    // Botão de deletar
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'action-btn delete-btn';
+    deleteBtn.textContent = 'Excluir';
+    deleteBtn.onclick = () => deleteBlock(block.id);
+    
+    // Botão de pausar (se aplicável)
+    const pauseBtn = document.createElement('button');
+    pauseBtn.className = 'action-btn pause-btn';
+    pauseBtn.textContent = 'Pausar';
+    pauseBtn.onclick = () => pauseBlock(block.id);
+    pauseBtn.style.display = block.status === 'Em andamento' ? 'inline-block' : 'none';
+    
+    // Botão de retomar (se aplicável)
+    const resumeBtn = document.createElement('button');
+    resumeBtn.className = 'action-btn resume-btn';
+    resumeBtn.textContent = 'Retomar';
+    resumeBtn.onclick = () => resumeBlock(block.id);
+    resumeBtn.style.display = block.status === 'Pausado' ? 'inline-block' : 'none';
+    
+    actionsCell.appendChild(deleteBtn);
+    actionsCell.appendChild(pauseBtn);
+    actionsCell.appendChild(resumeBtn);
+    row.appendChild(actionsCell);
+    
+    table.appendChild(row);
+  });
+}
+
+function deleteBlock(id) {
+  if (confirm('Tem certeza que deseja excluir este bloco?')) {
+    let blocks = JSON.parse(localStorage.getItem('blocks')) || [];
+    blocks = blocks.filter(block => block.id !== id);
+    localStorage.setItem('blocks', JSON.stringify(blocks));
+    loadDashboard();
+  }
+}
+
+function pauseBlock(id) {
+  let blocks = JSON.parse(localStorage.getItem('blocks')) || [];
+  const blockIndex = blocks.findIndex(block => block.id === id);
+  
+  if (blockIndex !== -1) {
+    blocks[blockIndex].status = 'Pausado';
+    localStorage.setItem('blocks', JSON.stringify(blocks));
+    loadDashboard();
+  }
+}
+
+function resumeBlock(id) {
+  let blocks = JSON.parse(localStorage.getItem('blocks')) || [];
+  const blockIndex = blocks.findIndex(block => block.id === id);
+  
+  if (blockIndex !== -1) {
+    blocks[blockIndex].status = 'Em andamento';
+    localStorage.setItem('blocks', JSON.stringify(blocks));
+    loadDashboard();
+  }
+}
+
+window.onload = loadDashboard;
+</script>
+
+</body>
+</html>
