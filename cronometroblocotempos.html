@@ -11,7 +11,7 @@
   input, select, button { margin: 5px; padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; }
   button { cursor: pointer; background: #00e676; color: #222; font-weight: bold; }
   button:hover { background: #00c760; }
-  .dashboard { margin-top: 30px; width: 100%; max-width: 800px; }
+  .dashboard { margin-top: 30px; width: 100%; max-width: 900px; }
   table { width: 100%; border-collapse: collapse; margin-top: 10px; }
   th, td { padding: 8px; border: 1px solid #ddd; text-align: center; }
   th { background: #00e676; color: #222; }
@@ -28,6 +28,36 @@
   .resume-btn:hover { background: #1976d2; }
   .save-btn { background: #673ab7; color: white; }
   .save-btn:hover { background: #5e35b1; }
+  .edit-btn { background: #9c27b0; color: white; }
+  .edit-btn:hover { background: #7b1fa2; }
+  .continue-btn { background: #4caf50; color: white; }
+  .continue-btn:hover { background: #388e3c; }
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.4);
+  }
+  .modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 500px;
+    border-radius: 8px;
+  }
+  .close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -58,17 +88,49 @@
   </table>
 </div>
 
+<!-- Modal para edição -->
+<div id="editModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h3>Editar Bloco</h3>
+    <input type="text" id="editProjectName" placeholder="Nome do Projeto" style="width: 100%; margin-bottom: 10px;">
+    <input type="text" id="editDuration" placeholder="Duração (hh:mm)" style="width: 100%; margin-bottom: 10px;">
+    <button onclick="confirmEdit()" class="save-btn">Confirmar Edição</button>
+  </div>
+</div>
+
 <script>
 let startTime, timerInterval;
 let elapsed = 0;
 let isRunning = false;
 let currentProject = '';
+let currentBlockId = null;
+let editingBlockId = null;
+
+// Modal functions
+const modal = document.getElementById("editModal");
+const span = document.getElementsByClassName("close")[0];
+
+span.onclick = function() {
+  modal.style.display = "none";
+}
+
+window.onclick = function(event) {
+  if (event.target == modal) {
+    modal.style.display = "none";
+  }
+}
 
 function startStopTimer() {
   const project = document.getElementById('projectName').value.trim();
-  if (!project) { alert('Digite o nome do projeto!'); return; }
+  if (!project && !currentProject) { 
+    alert('Digite o nome do projeto!'); 
+    return; 
+  }
   
-  currentProject = project;
+  if (!currentProject) {
+    currentProject = project;
+  }
 
   if (!isRunning) {
     startTime = Date.now() - elapsed;
@@ -98,6 +160,7 @@ function resetTimer() {
   elapsed = 0;
   isRunning = false;
   currentProject = '';
+  currentBlockId = null;
   document.getElementById('timerDisplay').textContent = '00:00:00';
   document.getElementById('startBtn').textContent = 'Iniciar';
   document.getElementById('saveBtn').disabled = true;
@@ -115,24 +178,38 @@ function saveCurrentBlock() {
     return;
   }
 
-  saveBlock(currentProject, elapsed);
+  saveBlock(currentProject, elapsed, currentBlockId);
   resetTimer();
 }
 
-function saveBlock(project, durationMs) {
+function saveBlock(project, durationMs, blockId = null) {
   const now = new Date();
   const durationMin = Math.floor(durationMs / 60000);
-  const block = {
-    id: Date.now(), // ID único para cada bloco
-    project,
-    date: now.toLocaleDateString(),
-    time: now.toLocaleTimeString(),
-    duration: `${Math.floor(durationMin/60)}h ${durationMin%60}min`,
-    durationMs: durationMs,
-    status: 'Concluído'
-  };
+  
   let blocks = JSON.parse(localStorage.getItem('blocks')) || [];
-  blocks.push(block);
+  
+  if (blockId) {
+    // Atualizar bloco existente
+    const index = blocks.findIndex(b => b.id === blockId);
+    if (index !== -1) {
+      blocks[index].duration = `${Math.floor(durationMin/60)}h ${durationMin%60}min`;
+      blocks[index].durationMs = durationMs;
+      blocks[index].status = 'Concluído';
+    }
+  } else {
+    // Criar novo bloco
+    const block = {
+      id: Date.now(),
+      project,
+      date: now.toLocaleDateString(),
+      time: now.toLocaleTimeString(),
+      duration: `${Math.floor(durationMin/60)}h ${durationMin%60}min`,
+      durationMs: durationMs,
+      status: 'Concluído'
+    };
+    blocks.push(block);
+  }
+  
   localStorage.setItem('blocks', JSON.stringify(blocks));
   loadDashboard();
 }
@@ -165,6 +242,18 @@ function loadDashboard() {
     deleteBtn.textContent = 'Excluir';
     deleteBtn.onclick = () => deleteBlock(block.id);
     
+    // Botão de editar
+    const editBtn = document.createElement('button');
+    editBtn.className = 'action-btn edit-btn';
+    editBtn.textContent = 'Editar';
+    editBtn.onclick = () => openEditModal(block);
+    
+    // Botão de continuar
+    const continueBtn = document.createElement('button');
+    continueBtn.className = 'action-btn continue-btn';
+    continueBtn.textContent = 'Continuar';
+    continueBtn.onclick = () => continueBlock(block);
+    
     // Botão de pausar (se aplicável)
     const pauseBtn = document.createElement('button');
     pauseBtn.className = 'action-btn pause-btn';
@@ -179,6 +268,8 @@ function loadDashboard() {
     resumeBtn.onclick = () => resumeBlock(block.id);
     resumeBtn.style.display = block.status === 'Pausado' ? 'inline-block' : 'none';
     
+    actionsCell.appendChild(editBtn);
+    actionsCell.appendChild(continueBtn);
     actionsCell.appendChild(deleteBtn);
     actionsCell.appendChild(pauseBtn);
     actionsCell.appendChild(resumeBtn);
@@ -217,6 +308,48 @@ function resumeBlock(id) {
     localStorage.setItem('blocks', JSON.stringify(blocks));
     loadDashboard();
   }
+}
+
+function openEditModal(block) {
+  editingBlockId = block.id;
+  document.getElementById('editProjectName').value = block.project;
+  document.getElementById('editDuration').value = block.duration;
+  modal.style.display = "block";
+}
+
+function confirmEdit() {
+  const newName = document.getElementById('editProjectName').value.trim();
+  const newDuration = document.getElementById('editDuration').value.trim();
+  
+  if (!newName || !newDuration) {
+    alert('Preencha todos os campos!');
+    return;
+  }
+  
+  let blocks = JSON.parse(localStorage.getItem('blocks')) || [];
+  const index = blocks.findIndex(b => b.id === editingBlockId);
+  
+  if (index !== -1) {
+    blocks[index].project = newName;
+    blocks[index].duration = newDuration;
+    localStorage.setItem('blocks', JSON.stringify(blocks));
+    loadDashboard();
+    modal.style.display = "none";
+  }
+}
+
+function continueBlock(block) {
+  if (isRunning) {
+    alert('Finalize o bloco atual antes de continuar outro!');
+    return;
+  }
+  
+  currentProject = block.project;
+  currentBlockId = block.id;
+  elapsed = block.durationMs || 0;
+  document.getElementById('projectName').value = block.project;
+  document.getElementById('startBtn').textContent = 'Retomar';
+  document.getElementById('saveBtn').disabled = false;
 }
 
 window.onload = loadDashboard;
