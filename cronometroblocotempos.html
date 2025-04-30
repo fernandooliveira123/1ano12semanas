@@ -5,21 +5,100 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cronômetro de Bloco Estratégico</title>
 <style>
-  body { font-family: Arial, sans-serif; background: #f8f9fa; color: #222; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+  :root {
+    --bg-color: #f8f9fa;
+    --text-color: #222;
+    --primary-color: #00e676;
+    --primary-hover: #00c760;
+    --table-border: #ddd;
+    --table-header-bg: #00e676;
+    --table-header-text: #222;
+    --modal-bg: #fefefe;
+    --input-bg: #f9f9f9;
+  }
+
+  .dark-mode {
+    --bg-color: #121212;
+    --text-color: #f1f1f1;
+    --primary-color: #00796b;
+    --primary-hover: #00695c;
+    --table-border: #444;
+    --table-header-bg: #00796b;
+    --table-header-text: #f1f1f1;
+    --modal-bg: #1e1e1e;
+    --input-bg: #2d2d2d;
+  }
+
+  body {
+    font-family: Arial, sans-serif;
+    background: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    transition: background 0.3s, color 0.3s;
+  }
+
   h1 { margin-bottom: 20px; }
   .timer { font-size: 48px; margin: 20px 0; }
-  input, select, button { margin: 5px; padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; }
-  button { cursor: pointer; background: #00e676; color: #222; font-weight: bold; }
-  button:hover { background: #00c760; }
-  .dashboard { margin-top: 30px; width: 100%; max-width: 900px; }
-  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-  th, td { padding: 8px; border: 1px solid #ddd; text-align: center; }
-  th { background: #00e676; color: #222; }
-  .action-btn { 
-    padding: 5px 10px; 
-    margin: 0 2px; 
-    font-size: 14px; 
+  
+  input, select, textarea {
+    margin: 5px;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    background: var(--input-bg);
+    color: var(--text-color);
   }
+  
+  button {
+    cursor: pointer;
+    background: var(--primary-color);
+    color: var(--text-color);
+    font-weight: bold;
+    margin: 5px;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    transition: background 0.3s;
+  }
+  
+  button:hover {
+    background: var(--primary-hover);
+  }
+
+  .dashboard {
+    margin-top: 30px;
+    width: 100%;
+    max-width: 900px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+  }
+
+  th, td {
+    padding: 8px;
+    border: 1px solid var(--table-border);
+    text-align: center;
+  }
+
+  th {
+    background: var(--table-header-bg);
+    color: var(--table-header-text);
+  }
+
+  .action-btn {
+    padding: 5px 10px;
+    margin: 0 2px;
+    font-size: 14px;
+  }
+
   .delete-btn { background: #ff5252; color: white; }
   .delete-btn:hover { background: #ff0000; }
   .pause-btn { background: #ffc107; color: #222; }
@@ -32,6 +111,9 @@
   .edit-btn:hover { background: #7b1fa2; }
   .continue-btn { background: #4caf50; color: white; }
   .continue-btn:hover { background: #388e3c; }
+  .theme-btn { background: #607d8b; color: white; }
+  .theme-btn:hover { background: #455a64; }
+
   .modal {
     display: none;
     position: fixed;
@@ -42,15 +124,18 @@
     height: 100%;
     background-color: rgba(0,0,0,0.4);
   }
+
   .modal-content {
-    background-color: #fefefe;
+    background-color: var(--modal-bg);
     margin: 15% auto;
     padding: 20px;
     border: 1px solid #888;
     width: 80%;
     max-width: 500px;
     border-radius: 8px;
+    color: var(--text-color);
   }
+
   .close {
     color: #aaa;
     float: right;
@@ -63,6 +148,10 @@
 <body>
 
 <h1>⏱️ Cronômetro de Bloco Estratégico</h1>
+
+<div style="position: absolute; top: 20px; right: 20px;">
+  <button onclick="toggleDarkMode()" class="theme-btn" id="themeBtn">🌙 Modo Dark</button>
+</div>
 
 <input type="text" id="projectName" placeholder="Nome do Projeto">
 <br>
@@ -100,12 +189,29 @@
 </div>
 
 <script>
+// Variáveis do timer
 let startTime, timerInterval;
 let elapsed = 0;
 let isRunning = false;
 let currentProject = '';
 let currentBlockId = null;
 let editingBlockId = null;
+
+// Verifica o tema salvo no localStorage
+if (localStorage.getItem('darkMode') === 'enabled') {
+  document.body.classList.add('dark-mode');
+  document.getElementById('themeBtn').textContent = '☀️ Modo Light';
+}
+
+// Alternar modo dark/light
+function toggleDarkMode() {
+  const body = document.body;
+  body.classList.toggle('dark-mode');
+  
+  const isDark = body.classList.contains('dark-mode');
+  localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+  document.getElementById('themeBtn').textContent = isDark ? '☀️ Modo Light' : '🌙 Modo Dark';
+}
 
 // Modal functions
 const modal = document.getElementById("editModal");
@@ -121,6 +227,7 @@ window.onclick = function(event) {
   }
 }
 
+// Restante do código do timer (como estava antes)
 function startStopTimer() {
   const project = document.getElementById('projectName').value.trim();
   if (!project && !currentProject) { 
